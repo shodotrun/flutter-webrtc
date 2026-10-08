@@ -30,6 +30,8 @@ add_library(${PLUGIN_NAME} SHARED
   "../common/cpp/src/flutter_webrtc.cc"
   "../common/cpp/src/flutter_webrtc_base.cc"
   "flutter_webrtc_plugin.cc"
+  "flutter_webrtc_bgra_converter.cc"
+  "flutter_webrtc_callback_gate.cc"
   "task_runner_windows.cc"
 )
 
@@ -49,11 +51,31 @@ target_include_directories(${PLUGIN_NAME} INTERFACE
   "${CMAKE_CURRENT_SOURCE_DIR}/../common/cpp/include"
   "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/libwebrtc/include"
 )
-target_link_libraries(${PLUGIN_NAME} PRIVATE 
+target_link_libraries(${PLUGIN_NAME} PRIVATE
   flutter
   flutter_wrapper_plugin
   "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/libwebrtc/lib/win64/libwebrtc.dll.lib"
 )
+
+include(CTest)
+if(BUILD_TESTING)
+  add_executable(flutter_webrtc_bgra_qualification EXCLUDE_FROM_ALL
+    "flutter_webrtc_bgra_converter.cc"
+    "flutter_webrtc_callback_gate.cc"
+    "flutter_webrtc_bgra_qualification.cc"
+  )
+  apply_standard_settings(flutter_webrtc_bgra_qualification)
+  set_target_properties(flutter_webrtc_bgra_qualification PROPERTIES
+    CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+  target_include_directories(flutter_webrtc_bgra_qualification PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../common/cpp/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/libwebrtc/include"
+  )
+  target_link_libraries(flutter_webrtc_bgra_qualification PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/libwebrtc/lib/win64/libwebrtc.dll.lib"
+  )
+endif()
 
 # List of absolute paths to libraries that should be bundled with the plugin
 set(flutter_webrtc_bundled_libraries

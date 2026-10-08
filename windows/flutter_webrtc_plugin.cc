@@ -3,12 +3,12 @@
 #include "flutter_common.h"
 #include "flutter_webrtc.h"
 #include "task_runner_windows.h"
+#include "flutter_webrtc_bgra_converter.h"
+#include "flutter_webrtc_callback_gate.h"
 
 #include <flutter/plugin_registrar_windows.h>
 
-#include <condition_variable>
 #include <atomic>
-#include <limits>
 #include <map>
 #include <mutex>
 #include <new>
@@ -18,9 +18,6 @@ const char* kChannelName = "FlutterWebRTC.Method";
 static flutter_webrtc_plugin::FlutterWebRTC* g_shared_instance = nullptr;
 
 namespace {
-
-constexpr uint32_t kMaximumFrameDimension = 16384;
-constexpr uint64_t kMaximumFrameBytes = 64ull * 1024ull * 1024ull;
 
 class BgraFrameSink final
     : public flutter_webrtc_plugin::RTCVideoRenderer<
@@ -48,60 +45,34 @@ class BgraFrameSink final
       track = std::move(track_);
     }
     if (track) track->RemoveRenderer(this);
-    std::unique_lock<std::mutex> lock(mutex_);
-    callbacks_drained_.wait(lock, [this] { return callbacks_in_flight_ == 0; });
+    callback_gate_.CloseAndWait();
   }
 
   void OnFrame(
       flutter_webrtc_plugin::scoped_refptr<
           flutter_webrtc_plugin::RTCVideoFrame> frame) override {
     if (!frame) return;
-    const auto width = frame->width();
-    const auto height = frame->height();
-    if (width <= 0 || height <= 0 ||
-        width > static_cast<int>(kMaximumFrameDimension) ||
-        height > static_cast<int>(kMaximumFrameDimension)) {
-      return;
-    }
-    const uint64_t stride = static_cast<uint64_t>(width) * 4u;
-    const uint64_t byte_count = stride * static_cast<uint64_t>(height);
-    if (byte_count == 0 || byte_count > kMaximumFrameBytes ||
-        byte_count > std::numeric_limits<size_t>::max()) {
-      return;
-    }
-    {
-      std::lock_guard<std::mutex> lock(mutex_);
-      if (closed_) return;
-      ++callbacks_in_flight_;
-    }
-    std::vector<uint8_t> bytes;
+    if (!callback_gate_.TryEnter()) return;
+    flutter_webrtc_plugin::WindowsBgraFrame converted;
     try {
-      bytes.resize(static_cast<size_t>(byte_count));
-      frame->ConvertToARGB(
-          flutter_webrtc_plugin::RTCVideoFrame::Type::kABGR, bytes.data(), 0,
-          width, height);
-      callback_(context_, bytes.data(), static_cast<uint32_t>(width),
-                static_cast<uint32_t>(height), static_cast<uint32_t>(stride),
-                ++frame_id_);
+      if (flutter_webrtc_plugin::ConvertWindowsFrameToBgra(frame, &converted)) {
+        callback_(context_, converted.bytes.data(), converted.width,
+                  converted.height, converted.bytes_per_row, ++frame_id_);
+      }
     } catch (...) {
       // A renderer callback must never unwind through libwebrtc.
     }
-    {
-      std::lock_guard<std::mutex> lock(mutex_);
-      --callbacks_in_flight_;
-      if (callbacks_in_flight_ == 0) callbacks_drained_.notify_all();
-    }
+    callback_gate_.Leave();
   }
 
  private:
   std::mutex mutex_;
-  std::condition_variable callbacks_drained_;
   flutter_webrtc_plugin::scoped_refptr<
       flutter_webrtc_plugin::RTCVideoTrack> track_;
   FlutterWebRTCWindowsBgraFrameCallback callback_;
   void* context_;
   std::atomic<uint64_t> frame_id_{0};
-  size_t callbacks_in_flight_ = 0;
+  flutter_webrtc_plugin::WindowsCallbackGate callback_gate_;
   bool closed_ = false;
 };
 
