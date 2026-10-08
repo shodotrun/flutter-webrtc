@@ -24,7 +24,7 @@ bool ConvertWindowsFrameToBgra(scoped_refptr<RTCVideoFrame> frame,
   const uint64_t stride = static_cast<uint64_t>(width) * 4u;
   const uint64_t byte_count = stride * static_cast<uint64_t>(height);
   if (byte_count == 0 || byte_count > kMaximumFrameBytes ||
-      byte_count > std::numeric_limits<size_t>::max()) {
+      byte_count > (std::numeric_limits<size_t>::max)()) {
     return false;
   }
   WindowsBgraFrame converted;
