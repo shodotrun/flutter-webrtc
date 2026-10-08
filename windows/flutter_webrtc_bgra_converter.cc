@@ -11,8 +11,9 @@ constexpr uint64_t kMaximumFrameBytes = 64ull * 1024ull * 1024ull;
 
 }  // namespace
 
-bool ConvertWindowsFrameToBgra(scoped_refptr<RTCVideoFrame> frame,
-                               WindowsBgraFrame* output) {
+bool ConvertWindowsFrameToBgra(
+    libwebrtc::scoped_refptr<libwebrtc::RTCVideoFrame> frame,
+    WindowsBgraFrame* output) {
   if (!frame || output == nullptr) return false;
   const int width = frame->width();
   const int height = frame->height();
@@ -38,7 +39,8 @@ bool ConvertWindowsFrameToBgra(scoped_refptr<RTCVideoFrame> frame,
   }
   // The qualification fixture locks the pinned wrapper's kABGR memory contract
   // to the BGRA8 texture format consumed by Flutter and WGPU.
-  if (frame->ConvertToARGB(RTCVideoFrame::Type::kABGR, converted.bytes.data(),
+  if (frame->ConvertToARGB(libwebrtc::RTCVideoFrame::Type::kABGR,
+                           converted.bytes.data(),
                            static_cast<int>(converted.bytes_per_row), width,
                            height) != 0) {
     return false;
