@@ -15,8 +15,9 @@ struct WindowsBgraFrame {
   std::vector<uint8_t> bytes;
 };
 
-bool ConvertWindowsFrameToBgra(scoped_refptr<RTCVideoFrame> frame,
-                               WindowsBgraFrame* output);
+bool ConvertWindowsFrameToBgra(
+    libwebrtc::scoped_refptr<libwebrtc::RTCVideoFrame> frame,
+    WindowsBgraFrame* output);
 
 }  // namespace flutter_webrtc_plugin
 

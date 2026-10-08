@@ -24,8 +24,7 @@ int main() {
   const uint8_t y[] = {82, 82, 41, 41, 82, 82, 41, 41};
   const uint8_t u[] = {90, 240};
   const uint8_t v[] = {240, 110};
-  auto frame = flutter_webrtc_plugin::RTCVideoFrame::Create(
-      4, 2, y, 4, u, 2, v, 2);
+  auto frame = libwebrtc::RTCVideoFrame::Create(4, 2, y, 4, u, 2, v, 2);
   flutter_webrtc_plugin::WindowsBgraFrame converted;
   CHECK(flutter_webrtc_plugin::ConvertWindowsFrameToBgra(frame, &converted));
   CHECK(converted.width == 4);
