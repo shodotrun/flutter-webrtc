@@ -25,7 +25,30 @@ int main() {
   const uint8_t u[] = {90, 240};
   const uint8_t v[] = {240, 110};
   auto frame = libwebrtc::RTCVideoFrame::Create(4, 2, y, 4, u, 2, v, 2);
+  CHECK(frame.get() != nullptr);
+
+  // Lock the installed libwebrtc DLL contract independently of the adapter.
+  // ConvertToARGB returns bytes written, and kARGB is BGRA in memory on
+  // little-endian Windows. kABGR would swap red and blue for our texture.
+  uint8_t raw_argb[32] = {};
+  CHECK(frame->ConvertToARGB(libwebrtc::RTCVideoFrame::Type::kARGB,
+                             raw_argb, 16, 4, 2) == 32);
+  CHECK(raw_argb[0] <= 2 && raw_argb[1] <= 2 && raw_argb[2] >= 253 &&
+        raw_argb[3] == 255);
+  CHECK(raw_argb[8] >= 253 && raw_argb[9] <= 2 && raw_argb[10] <= 2 &&
+        raw_argb[11] == 255);
+  uint8_t raw_abgr[32] = {};
+  CHECK(frame->ConvertToARGB(libwebrtc::RTCVideoFrame::Type::kABGR,
+                             raw_abgr, 16, 4, 2) == 32);
+  CHECK(raw_abgr[0] >= 253 && raw_abgr[1] <= 2 && raw_abgr[2] <= 2 &&
+        raw_abgr[3] == 255);
+  CHECK(raw_abgr[8] <= 2 && raw_abgr[9] <= 2 && raw_abgr[10] >= 253 &&
+        raw_abgr[11] == 255);
+
   flutter_webrtc_plugin::WindowsBgraFrame converted;
+  CHECK(!flutter_webrtc_plugin::ConvertWindowsFrameToBgra(
+      libwebrtc::scoped_refptr<libwebrtc::RTCVideoFrame>{}, &converted));
+  CHECK(!flutter_webrtc_plugin::ConvertWindowsFrameToBgra(frame, nullptr));
   CHECK(flutter_webrtc_plugin::ConvertWindowsFrameToBgra(frame, &converted));
   CHECK(converted.width == 4);
   CHECK(converted.height == 2);
