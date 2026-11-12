@@ -37,12 +37,15 @@ bool ConvertWindowsFrameToBgra(
   } catch (...) {
     return false;
   }
-  // The qualification fixture locks the pinned wrapper's kABGR memory contract
-  // to the BGRA8 texture format consumed by Flutter and WGPU.
-  if (frame->ConvertToARGB(libwebrtc::RTCVideoFrame::Type::kABGR,
+  // libwebrtc names types after libyuv, whose names describe a little-endian
+  // word: kARGB writes B,G,R,A bytes (BGRA8), while kABGR writes R,G,B,A. The
+  // qualification fixture locks that byte order to the BGRA8 texture format
+  // consumed by Flutter and WGPU. ConvertToARGB returns the bytes written
+  // (width * height * 4), not a status code.
+  if (frame->ConvertToARGB(libwebrtc::RTCVideoFrame::Type::kARGB,
                            converted.bytes.data(),
                            static_cast<int>(converted.bytes_per_row), width,
-                           height) != 0) {
+                           height) != static_cast<int>(byte_count)) {
     return false;
   }
   *output = std::move(converted);
